@@ -1,0 +1,6 @@
+framework module MTProtocolFramework {
+  umbrella header "MTProtocolFramework.h"
+
+  export *
+  module * { export * }
+}
