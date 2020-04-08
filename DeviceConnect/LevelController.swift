@@ -31,6 +31,7 @@ class LevelController: UIViewController, CLLocationManagerDelegate {
     
     @IBAction func doneWithLevel(_ sender: Any) {
         saveScreen()
+        houseKeeping()
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let newViewController = storyBoard.instantiateViewController(withIdentifier: "SelectProject") as! SelectProject
         newViewController.modalPresentationStyle = .fullScreen
@@ -39,35 +40,45 @@ class LevelController: UIViewController, CLLocationManagerDelegate {
     
     @IBAction func backToSelectedProject(_ sender: Any) {
         saveScreen()
+        houseKeeping()
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let newViewController = storyBoard.instantiateViewController(withIdentifier: "SelectProject") as! SelectProject
         newViewController.modalPresentationStyle = .fullScreen
         self.present(newViewController, animated: true, completion: nil)
     }
     
+    func houseKeeping(){
+        let allRooms = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: p!.ProjectId, _lId: level!.LevelId);
+        for r in allRooms{
+            if(r.Connectors == ""){
+                _ = SqliteDbStore.shared.deleteRoom(_Id: r.Id)
+            }
+        }
+    }
+    
     @IBAction func saveRoom(_ sender: Any) {
-            if(startGrid.count > 0 && currentRoom > -1) {
-                var ids = [String]()
-                for i in startGrid{
-                    ids.append(String(i.mRectSquare.tag))
-                }
-                
-                let allRooms = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: p!.ProjectId, _lId: level!.LevelId);
-                
-                for var r in allRooms{
-                    if(currentRoom == r.Id){
-                        r.Connectors = ids.joined(separator:",")
-                        _ = SqliteDbStore.shared.updateRoom(_Id: r.Id, room: r)
-                        break;
-                    }
+        if(startGrid.count > 0 && currentRoom > -1) {
+            var ids = [String]()
+            for i in startGrid{
+                ids.append(String(i.mRectSquare.tag))
+            }
+            
+            let allRooms = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: p!.ProjectId, _lId: level!.LevelId);
+            for var r in allRooms{
+                if(currentRoom == r.Id){
+                    r.Connectors = ids.joined(separator:",")
+                    _ = SqliteDbStore.shared.updateRoom(_Id: r.Id, room: r)
+                    break;
                 }
             }
-            getEmptyBoard()
-            startRoomTilesCollection = false
-            numbOfSelection = 0
-            SqliteDbStore.shared.StartNewRoom = false
-            startGrid.removeAll()
+        }
+        getEmptyBoard()
+        startRoomTilesCollection = false
+        numbOfSelection = 0
+        SqliteDbStore.shared.StartNewRoom = false
+        startGrid.removeAll()
         
+        houseKeeping()
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
         newViewController.modalPresentationStyle = .fullScreen
@@ -638,14 +649,22 @@ class LevelController: UIViewController, CLLocationManagerDelegate {
             }
         }))
         alert.addAction(UIAlertAction(title: "Delete All Rooms", style: .default, handler: { action in
-            let allRooms = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: self.p!.ProjectId, _lId: self.level!.LevelId);
-            for r2 in allRooms{
-                _ = SqliteDbStore.shared.deleteRoom(_Id: r2.Id)
-            }
-            let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-            let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
-             newViewController.modalPresentationStyle = .fullScreen
-            self.present(newViewController, animated: true, completion: nil)
+            let title2 = "DELETE CONFIRMATION"
+            let msg = "Are you sure you want to delete all rooms, their photos and measurements for this level?"
+            let alert2 = UIAlertController(title: title2, message: msg, preferredStyle: .alert)
+            alert2.addAction(UIAlertAction(title: "YES", style: .default, handler: { action in
+                let allRooms = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: self.p!.ProjectId, _lId: self.level!.LevelId);
+                for r2 in allRooms{
+                    _ = SqliteDbStore.shared.deleteRoom(_Id: r2.Id)
+                }
+                let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+                let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
+                 newViewController.modalPresentationStyle = .fullScreen
+                self.present(newViewController, animated: true, completion: nil)
+            }))
+            alert2.addAction(UIAlertAction(title: "NO", style: .default, handler: { action in
+            }))
+            self.present(alert2, animated: true)
         }))
         alert.addAction(UIAlertAction(title: "Shift Layout Left", style: .default, handler: { action in
             self.shiftSideToSide(dir: 1)

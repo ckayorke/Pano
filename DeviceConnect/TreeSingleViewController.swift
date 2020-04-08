@@ -6,9 +6,20 @@ class TreeSingleViewController: UIViewController {
     @IBOutlet weak var viewArea2: UIView!
     @IBOutlet weak var _titleBtn: UIButton!
     @IBAction func back(_ sender: Any) {
-        let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-        let newViewController = storyBoard.instantiateViewController(withIdentifier: "SelectProject") as! SelectProject
-        self.present(newViewController, animated: true, completion: nil)
+        
+        if(SqliteDbStore.shared.projectErrorsRequested == 2){
+            let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+            let newViewController = storyBoard.instantiateViewController(withIdentifier: "SelectProject") as! SelectProject
+            self.present(newViewController, animated: true, completion: nil)
+        }
+        else{
+            let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+            let newViewController = storyBoard.instantiateViewController(withIdentifier: "ProjectViewController") as! ProjectViewController
+            self.present(newViewController, animated: true, completion: nil)
+        }
+        
+        
+        
     }
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,7 +97,7 @@ class TreeSingleViewController: UIViewController {
         let dataNode19 = DataNode(id:"19", pid:"18", name:"Yes", description:"",  mainNode: false)
         data.append(dataNode19)
         
-        let dataNode20 = DataNode(id:"20", pid:"1", name:"Upload Check", description:"", mainNode: false)
+        let dataNode20 = DataNode(id:"20", pid:"1", name:"Missing Upload Check", description:"", mainNode: false)
         data.append(dataNode20)
         
         let dataNode21 = DataNode(id:"21", pid:"20", name:"Yes", description:"",  mainNode: false)
@@ -183,11 +194,23 @@ class TreeSingleViewController: UIViewController {
             let upload =  pError.MissingCheck.trimmingCharacters(in: .whitespacesAndNewlines)
             if(upload.contains("Yes")){
                 let pjId12 = "\(count)"
-                let dataNode20 = DataNode(id:pjId12, pid:pjId, name:"Upload Check", description:"", mainNode: false)
+                let dataNode20 = DataNode(id:pjId12, pid:pjId, name:"Missing Upload Check", description:"", mainNode: false)
                 data.append(dataNode20)
                 count = count + 1
                 let pjId13 = "\(count)"
                 let dataNode19 = DataNode(id:pjId13, pid:pjId12, name:"Yes", description:"",  mainNode: false)
+                data.append(dataNode19)
+                count = count + 1
+            }
+            
+            let out3DPic =  pError.MissingOutside3DPics.trimmingCharacters(in: .whitespacesAndNewlines)
+            if(out3DPic.contains("Yes")){
+                let pjId14 = "\(count)"
+                let dataNode18 = DataNode(id:pjId14, pid:pjId, name:"Missing Entrance 3D Pictures", description:"", mainNode: false)
+                data.append(dataNode18)
+                count = count + 1
+                let pjId15 = "\(count)"
+                let dataNode19 = DataNode(id:pjId15, pid:pjId14, name:"Yes", description:"",  mainNode: false)
                 data.append(dataNode19)
                 count = count + 1
             }

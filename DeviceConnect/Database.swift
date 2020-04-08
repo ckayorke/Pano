@@ -101,152 +101,32 @@ class Database: UIViewController, URLSessionDelegate, URLSessionTaskDelegate, UR
         outProjects.removeAll()
         outLevels.removeAll()
         outRooms.removeAll()
+        SqliteDbStore.shared.projectErrors.removeAll()
         let projects =  SqliteDbStore.shared.queryAllProject()
+         let rooms = SqliteDbStore.shared.queryAllRooms()
+        
         for p in projects{
-           _ = projectCompleteness(p: p)
-        }
-    }
-    func projectCompleteness(p:Project)->Int{
-        var pError = ProjectError()
-        var req = hasRequired(projectId: p.ProjectId)
-        if(p.Status != 0){
-            req = ""
-        }
-        
-        
-        if (p.Completed == "Yes" && (p.OutsidePictures != "") && (req == "")) {
-        }
-        else{
-            pError.ProjectId = p.ProjectId
-            
-            if (p.Completed == "Yes") {
-                pError.MissingCheck = "No"
-            }
-            else{
-                pError.MissingCheck = "Yes"
-            }
-            if  (p.OutsidePictures == "") {
-                pError.MissingOutsidePics = "Yes"
-            }
-            if(req.count > 0){
-                pError.BK = req
-            }
-        }
-        
-        var rooms2:[Room] = []
-        let rooms = SqliteDbStore.shared.queryAllRooms()
-        for r in rooms {
-            if(r.ProjectId == p.ProjectId){
-                rooms2.append(r)
-                let name = r.Name.trimmingCharacters(in: .whitespacesAndNewlines)
-                let name2 = name.lowercased()
-                
-                let PictureName = r.PictureName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let PictureName2 = PictureName.lowercased()
-                
-                let RoomLength = r.RoomLength.trimmingCharacters(in: .whitespacesAndNewlines)
-                let RoomLength2 = RoomLength.lowercased()
-                
-                if(name2.contains("crawl space") || name2.contains("attic") || name2.contains("staircase")){
-                    continue
-                }
-                else if((PictureName2 != "") && (RoomLength2 != "")){
-                }
-                else{
-                    pError.Address = r.Address
-                    if(PictureName2 == "" ){
-                        if(pError.MissingPicture == ""){
-                            pError.MissingPicture = r.Name
-                        }
-                        else{
-                            pError.MissingPicture = pError.MissingPicture + ", " + r.Name
-                        }
-                    }
-                    if(RoomLength2 == ""){
-                        if(pError.MissingMeasure == ""){
-                            pError.MissingMeasure =  r.Name
-                        }
-                        else{
-                            pError.MissingMeasure = pError.MissingMeasure + ", " + r.Name
-                        }
-                    }
-                }
-            }
-        }
-        
-        
-        let levels = SqliteDbStore.shared.queryAllLevel(_Id: p.ProjectId)
-        for l in levels {
-            var isGoodLevel = false
-            for r in rooms {
-                if (r.ProjectId == l.ProjectId && r.LevelId == l.LevelId) {
-                    isGoodLevel = true
-                    break
-                }
-            }
-            if(isGoodLevel==false) {
-                if(pError.EmptyLevels == ""){
-                    pError.EmptyLevels = l.Name
-                }
-                else{
-                    pError.EmptyLevels = pError.EmptyLevels + ", " + l.Name
-                }
-            }
-        }
-        
-        if(rooms2.count == 0 && levels.count == 0){
-            let out = p.OutsidePictures.trimmingCharacters(in: .whitespacesAndNewlines)
-            if(out.count == 0){
-                return 1
-            }
-        }
-        
-        
-        
-        var isGoodProject = false
-        for r in rooms{
-            if (r.ProjectId == p.ProjectId) {
-                isGoodProject = true;
-                break;
-            }
-        }
-        
-        if(isGoodProject == false) {
-            pError.ProjectId = p.ProjectId
-            pError.Address = p.Address
-        }
-        pError.Address = p.Address
-        pError.City = p.City  + ", " + p.State + ", " + p.ZIPCode
-        
-        let bk = pError.BK.trimmingCharacters(in: .whitespacesAndNewlines)
-        let eptl = pError.EmptyLevels.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mMeasure = pError.MissingMeasure.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mPicture = pError.MissingPicture.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mOutPicture = pError.MissingOutsidePics.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        
-        
-        if((bk != "") || (eptl != "") ||  (mMeasure != "" ) || (mPicture != "") || (mOutPicture != "No")){
-            if(p.Status == 0){
-               return 2
-            }
-            else if(p.Status == 2 && levels.count == 0 && p.OutsidePictures.count == 0 && p.Outside3DPictures.count == 0){
-                return 1
-             }
-            else{
+            var complete = SqliteDbStore.shared.projectCompleted(p: p)
+            if(complete.ReturnType == 3 && p.Completed == "Yes"){
                 outProjects.append(p)
-                outLevels.append(contentsOf: levels)
-                outRooms.append(contentsOf: rooms2)
+                outLevels.append(contentsOf:SqliteDbStore.shared.queryAllLevel(_Id: p.ProjectId))
+                for r in rooms {
+                    if(r.ProjectId == p.ProjectId){
+                        outRooms.append(r)
+                    }
+                }
                 selectImages(id: p.ProjectId)
-                return 3
             }
-        }
-        else{
-           outProjects.append(p)
-           outLevels.append(contentsOf: levels)
-           outRooms.append(contentsOf: rooms2)
-           selectImages(id: p.ProjectId)
-           return 3
+            else if(complete.ReturnType == 3 && p.Completed != "Yes"){
+                complete.MissingCheck = "Yes"
+                complete.Address = p.Address
+                complete.City = p.City  + ", " + p.State + ", " + p.ZIPCode
+                SqliteDbStore.shared.projectErrors.append(complete)
+            }
+            else if(complete.ReturnType == 2){
+                SqliteDbStore.shared.projectErrors.append(complete)
+            }
+            
         }
     }
     
@@ -556,6 +436,19 @@ class Database: UIViewController, URLSessionDelegate, URLSessionTaskDelegate, UR
                 }
                 if(isOld){
                     SqliteDbStore.shared.deleteProject(_Id: i.ProjectId)
+                    let allLevels = SqliteDbStore.shared.queryAllLevel2()
+                    for lv in allLevels{
+                        if(lv.ProjectId == i.ProjectId){
+                            _ = SqliteDbStore.shared.deleteLevel(_Id: lv.Id)
+                        }
+                    }
+                    
+                    let allRooms = SqliteDbStore.shared.queryAllRooms()
+                    for rm in allRooms{
+                        if(rm.ProjectId == i.ProjectId){
+                            _ = SqliteDbStore.shared.deleteRoom(_Id: rm.Id)
+                        }
+                    }
                 }
             }
     
@@ -625,10 +518,24 @@ class Database: UIViewController, URLSessionDelegate, URLSessionTaskDelegate, UR
         let title = "UPLOAD REPORT"
         let alert = UIAlertController(title: title, message: msg, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { action in
-            let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-            let newViewController = storyBoard.instantiateViewController(withIdentifier: "ProjectViewController") as! ProjectViewController
-            newViewController.modalPresentationStyle = .fullScreen
-            self.present(newViewController, animated: true, completion: nil)
+            
+            if( SqliteDbStore.shared.projectErrors.count>0){
+                SqliteDbStore.shared.projectErrorsRequested = 1
+                let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+                let newViewController = storyBoard.instantiateViewController(withIdentifier: "TreeSingleViewController") as! TreeSingleViewController
+                newViewController.modalPresentationStyle = .fullScreen
+                self.present(newViewController, animated: true, completion: nil)
+            }
+            else{
+                let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+                let newViewController = storyBoard.instantiateViewController(withIdentifier: "ProjectViewController") as! ProjectViewController
+                newViewController.modalPresentationStyle = .fullScreen
+                self.present(newViewController, animated: true, completion: nil)
+            }
+            
+            
+            
+            
         }))
         self.present(alert, animated: true)
     }

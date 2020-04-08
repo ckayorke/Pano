@@ -25,18 +25,19 @@ class DeviceViewController: UIViewController, UITableViewDataSource, UITableView
     @IBOutlet weak var tabView: UITableView!
     @IBOutlet weak var navBar: UINavigationBar!
     @IBAction func done(_ sender: Any) {
-        let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-        let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
-        newViewController.modalPresentationStyle = .fullScreen
-        self.present(newViewController, animated: true, completion: nil)
+        backTo()
     }
     
     
     @IBAction func backNav(_ sender: Any) {
+        backTo()
+    }
+    
+    func backTo(){
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-               let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
-               newViewController.modalPresentationStyle = .fullScreen
-               self.present(newViewController, animated: true, completion: nil)
+        let newViewController = storyBoard.instantiateViewController(withIdentifier: "LevelController") as! LevelController
+        newViewController.modalPresentationStyle = .fullScreen
+        self.present(newViewController, animated: true, completion: nil)
     }
     
     /// Contains the current list of reachable devices.
@@ -64,7 +65,6 @@ class DeviceViewController: UIViewController, UITableViewDataSource, UITableView
         setupNavigationBarItem()
         // Activate Bluetooth scanning
         if(SqliteDbStore.shared.myConnectedDevice == nil  || SqliteDbStore.shared.myConnectedDevice.isConnected == false){
-            
             self.scanForBluetoothDevices()
             editText.isHidden = true
         }
@@ -96,7 +96,8 @@ class DeviceViewController: UIViewController, UITableViewDataSource, UITableView
         refreshBtn.tintColor = #colorLiteral(red: 1, green: 1, blue: 1, alpha: 1)
         navigationItem.rightBarButtonItem = refreshBtn
         
-        navigationItem.title = "00 Good Street, Rochester, MI"
+        let p = SqliteDbStore.shared._Project
+        navigationItem.title =  p!.Address + "," + p!.City + "," +  p!.State + "," +  p!.ZIPCode
         navBar.setItems([navigationItem], animated: false)
         
         //self.navigationItem.rightBarButtonItems = [
@@ -449,6 +450,7 @@ class DeviceViewController: UIViewController, UITableViewDataSource, UITableView
         }))
         alert.addAction(UIAlertAction(title: "NO", style: .default, handler: { action in
              self.editText.text =  ""
+             self.backTo()
         }))
         self.present(alert, animated: true)
     }
@@ -465,11 +467,9 @@ class DeviceViewController: UIViewController, UITableViewDataSource, UITableView
         measureLabels.append(lmeasure9)
         measureLabels.append(lmeasure10)
     }
-    
     override open var shouldAutorotate: Bool {
            return false
     }
-    
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask{
         return UIInterfaceOrientationMask.portrait
     }

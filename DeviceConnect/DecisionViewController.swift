@@ -5,7 +5,6 @@ class DecisionViewController: UIViewController {
     @IBAction func OpenProjectBtn(_ sender: Any) {
        SqliteDbStore.shared.projectStatus = 0;
        nav()
-        
     }
     @IBAction func NeedInfoBtn(_ sender: Any) {
         SqliteDbStore.shared.projectStatus = 2;
@@ -21,7 +20,7 @@ class DecisionViewController: UIViewController {
     }
     
     func testSQLite3(){
-        
+        SqliteDbStore.shared.addData()
     }
     
     func nav(){

@@ -6,6 +6,7 @@ class SqliteDbStore {
     static let shared:SqliteDbStore = SqliteDbStore()
     public var myConnectedDevice:MMBluetoothDevice!
     public var projectErrors = [ProjectError]()
+    public var projectErrorsRequested = 1
     public var dName = ""
     public var object: TableCellObject?
     //private let db: Connection?

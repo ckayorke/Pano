@@ -26,21 +26,28 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
     @IBOutlet weak var bar: UIButton!
     @IBOutlet weak var btnCompleted: UIButton!
     @IBOutlet weak var btnSurrounding: UIButton!
+    
     @IBAction func AddBasement(_ sender: Any) {
-        CreateLevel(name: "BASEMENT", levId: 1)
+        let id = getLevelID()
+        CreateLevel(name: "BASEMENT", levId: id)
     }
     @IBAction func AddFirstFloor(_ sender: Any) {
-         CreateLevel(name: "FIRST FLOOR", levId: 2)
+         let id = getLevelID()
+         CreateLevel(name: "FIRST FLOOR", levId: id)
     }
     @IBAction func AddSecondFloor(_ sender: Any) {
-         CreateLevel(name: "SECOND FLOOR", levId: 3)
+         let id = getLevelID()
+         CreateLevel(name: "SECOND FLOOR", levId: id)
     }
     @IBAction func AddThirdFloor(_ sender: Any) {
-        CreateLevel(name: "THIRD FLOOR", levId: 4)
+        let id = getLevelID()
+        CreateLevel(name: "THIRD FLOOR", levId: id)
     }
     @IBAction func AddFourthFloor(_ sender: Any) {
-        CreateLevel(name: "FOURTH FLOOR", levId: 5)
+        let id = getLevelID()
+        CreateLevel(name: "FOURTH FLOOR", levId: id)
     }
+    
     @IBAction func TakeSurroundPic(_ sender: Any) {
         picLoader()
     }
@@ -59,6 +66,17 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
     
     @IBAction func takeEntrancePic(_ sender: Any) {
         checkCamConnection()
+    }
+    
+    func getLevelID()->Int{
+        var id = 0
+        let allRoom = SqliteDbStore.shared.queryAllLevel2()
+        for a in allRoom{
+            if(a.Id > id){
+                id = a.Id
+            }
+        }
+        return id + 1
     }
     
 
@@ -213,10 +231,10 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        if(has3DPicture == false){
-            has3DPictureAlert();
-            return;
-        }
+        //if(has3DPicture == false){
+          //  has3DPictureAlert();
+          //  return;
+        // }
         
         let level = levels[indexPath.row];
         SqliteDbStore.shared._Level = level
@@ -255,30 +273,23 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
             }
         }
         
-        if(p?.Outside3DPictures.count == 0  && SqliteDbStore.shared._Project?.Status == 0){
-                has3DPicture = false;
-                base.isEnabled = false
-                base.setTitleColor(UIColor.gray, for: .disabled)
-            
-                firstfloor.isEnabled = false
-                firstfloor.setTitleColor(UIColor.gray, for: .disabled)
-            
-                secondfloor.isEnabled = false
-                secondfloor.setTitleColor(UIColor.gray, for: .disabled)
-            
-                thirdfloor.isEnabled = false
-                thirdfloor.setTitleColor(UIColor.gray, for: .disabled)
-            
-                fourthfloor.isEnabled = false
-                fourthfloor.setTitleColor(UIColor.gray, for: .disabled)
-            
-                btnCompleted.isEnabled = false
-                btnCompleted.setTitleColor(UIColor.gray, for: .disabled)
-            
-                btnSurrounding.isEnabled = false
-                btnSurrounding.setTitleColor(UIColor.gray, for: .disabled)
-            
-        }
+       // if(p?.Outside3DPictures.count == 0  && SqliteDbStore.shared._Project?.Status == 0){
+               // has3DPicture = false;
+                //base.isEnabled = false
+                //base.setTitleColor(UIColor.gray, for: .disabled)
+                //firstfloor.isEnabled = false
+                //firstfloor.setTitleColor(UIColor.gray, for: .disabled)
+                //secondfloor.isEnabled = false
+                //secondfloor.setTitleColor(UIColor.gray, for: .disabled)
+                //thirdfloor.isEnabled = false
+               // thirdfloor.setTitleColor(UIColor.gray, for: .disabled)
+               // fourthfloor.isEnabled = false
+               // fourthfloor.setTitleColor(UIColor.gray, for: .disabled)
+               // btnCompleted.isEnabled = false
+                //btnCompleted.setTitleColor(UIColor.gray, for: .disabled)
+                //btnSurrounding.isEnabled = false
+                //btnSurrounding.setTitleColor(UIColor.gray, for: .disabled)
+       // }
         
         //=====================================================================
         if #available(iOS 13.0, *) {
@@ -324,6 +335,7 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
                 return
             }
         }
+        
         let pId = SqliteDbStore.shared._Project!.ProjectId
         let newLevel = Level(Id: -1,LevelId: levId,ProjectId: pId,Name:name,Status: 0,Status2: "Created",PicName: "")
         SqliteDbStore.shared.addlevel(level: newLevel)
@@ -385,122 +397,28 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
     
     
     func checkProjectComplete(){
-        var pError = ProjectError()
         let p = SqliteDbStore.shared._Project
-        var req = hasRequired(projectId: p!.ProjectId)
-        if(p?.Status != 0){
-            req = ""
+        var pError = SqliteDbStore.shared.projectCompleted(p: p!)
+        if(pError.ReturnType == 3 && p?.Completed == "Yes"){
+            let title2 = "PROJECT COMPLETION CHECK"
+            let msg = "Project is complete."
+            let alert2 = UIAlertController(title: title2, message: msg, preferredStyle: .alert)
+            alert2.addAction(UIAlertAction(title: "OK", style: .default, handler: { action in
+            }))
+            self.present(alert2, animated: true)
         }
-        if (p!.Completed == "Yes" && (p!.OutsidePictures != "") && (req == "")) {
-        }
-        else{
-            pError.ProjectId = p!.ProjectId
-            if (p!.Completed == "Yes") {
-                pError.MissingCheck = "No"
-            }
-            else{
+        else if(pError.ReturnType == 3){
                 pError.MissingCheck = "Yes"
-            }
-            if  (p!.OutsidePictures=="") {
-                pError.MissingOutsidePics = "Yes"
-            }
-            if(req.count > 0){
-                pError.BK = req
-            }
-        }
-        
-        //var needsCheck:[Int] = []
-        let rooms = SqliteDbStore.shared.queryAllRooms()
-        
-        for r in rooms {
-            if(r.ProjectId == SqliteDbStore.shared._Project?.ProjectId){
-                
-                let name = r.Name.trimmingCharacters(in: .whitespacesAndNewlines)
-                let name2 = name.lowercased()
-                
-                let PictureName = r.PictureName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let PictureName2 = PictureName.lowercased()
-                
-                let RoomLength = r.RoomLength.trimmingCharacters(in: .whitespacesAndNewlines)
-                let RoomLength2 = RoomLength.lowercased()
-                
-                if(name2.contains("crawl space") || name2.contains("attic") || name2.contains("staircase")){
-                    continue
-                }
-                else if((PictureName2 != "") && (RoomLength2 != "")){
-                }
-                else{
-                    pError.Address = r.Address
-                    if(PictureName2 == "" ){
-                        if(pError.MissingPicture == ""){
-                            pError.MissingPicture = r.Name
-                        }
-                        else{
-                            pError.MissingPicture = pError.MissingPicture + ", " + r.Name
-                        }
-                    }
-                    if(RoomLength2 == ""){
-                        if(pError.MissingMeasure == ""){
-                            pError.MissingMeasure =  r.Name
-                        }
-                        else{
-                            pError.MissingMeasure = pError.MissingMeasure + ", " + r.Name
-                        }
-                    }
-                }
-            }
-        }
-        
-        
-        let levels = SqliteDbStore.shared.queryAllLevel(_Id: SqliteDbStore.shared._Project!.ProjectId)
-        for l in levels {
-            var isGoodLevel = false
-            for r in rooms {
-                if (r.ProjectId == l.ProjectId && r.LevelId == l.LevelId) {
-                    isGoodLevel = true
-                    break
-                }
-            }
-            if(isGoodLevel==false) {
-                if(pError.EmptyLevels == ""){
-                    pError.EmptyLevels = l.Name
-                }
-                else{
-                   pError.EmptyLevels = pError.EmptyLevels + ", " + l.Name
-                }
-            }
-        }
-        
-        
-
-        var isGoodProject = false
-        for r in rooms{
-            if (r.ProjectId == p!.ProjectId) {
-                isGoodProject = true;
-                break;
-            }
-        }
-        
-        
-        if(isGoodProject == false) {
-            pError.ProjectId = p!.ProjectId
-            pError.Address = p!.Address
-        }
-        pError.Address = p!.Address
-        pError.City = p!.City  + ", " + p!.State + ", " + p!.ZIPCode
-        
-        
-        let bk = pError.BK.trimmingCharacters(in: .whitespacesAndNewlines)
-        let eptl = pError.EmptyLevels.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mMeasure = pError.MissingMeasure.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mPicture = pError.MissingPicture.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mOutPicture = pError.MissingOutsidePics.trimmingCharacters(in: .whitespacesAndNewlines)
-        if((bk != "") || (eptl != "") ||  (mMeasure != "" ) || (mPicture != "") || (mOutPicture != "No")){
-            showDialog(pError: pError)
+                pError.Address = p!.Address
+                pError.City = p!.City  + ", " + p!.State + ", " + p!.ZIPCode
+                showDialog(pError: pError)
+         }
+        else if(pError.ReturnType == 2){
+               showDialog(pError: pError)
         }
         else{
             let title2 = "PROJECT COMPLETION CHECK"
-            let msg = "Project is complete."
+            let msg = "Project is Empty."
             let alert2 = UIAlertController(title: title2, message: msg, preferredStyle: .alert)
             alert2.addAction(UIAlertAction(title: "OK", style: .default, handler: { action in
             }))
@@ -543,6 +461,7 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
     }
     
     func showDialog(pError: ProjectError){
+        SqliteDbStore.shared.projectErrorsRequested = 2
         SqliteDbStore.shared.projectErrors.removeAll()
         SqliteDbStore.shared.projectErrors.append(pError)
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
@@ -579,7 +498,7 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
        }
        else{
             let title9 = "CAMERA WIFI CONNECTION"
-            let msg9 = "Please connect your phone to the camera WIFI before continue."
+            let msg9 = "Please connect your phone to the camera WIFI (THETAJY..........OSC) before continue. This can be done by going to your phone settings."
             let alert9 = UIAlertController(title: title9, message: msg9, preferredStyle: .alert)
             alert9.addAction(UIAlertAction(title: "OK", style: .default, handler: { action in
                 let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)

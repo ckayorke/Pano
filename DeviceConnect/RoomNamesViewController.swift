@@ -1,8 +1,7 @@
 
 import UIKit
-
 class RoomNamesViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-var names: [RoomName] = SqliteDbStore.shared.getRoomNames()
+var names: [RoomName] = []
 @IBAction func naviback(_ sender: Any) {
     SqliteDbStore.shared.StartNewRoom = false
     let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
@@ -32,6 +31,7 @@ func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 }
 override func viewDidLoad() {
     super.viewDidLoad()
+    names = SqliteDbStore.shared.getRoomNames()
     let p = SqliteDbStore.shared._Project
     let l = SqliteDbStore.shared._Level
     let existedNames = SqliteDbStore.shared.queryAllRoomsByProjectIdAndLevelId(_pId: p!.ProjectId, _lId: l!.LevelId)

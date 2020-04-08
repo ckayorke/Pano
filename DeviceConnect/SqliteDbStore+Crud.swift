@@ -62,7 +62,6 @@ extension SqliteDbStore {
                       employeeId: String(cString: sqlite3_column_text(readEntryStmt, 2)),
                       designation: String(cString: sqlite3_column_text(readEntryStmt, 3)))
     }
-    
     func readAll() throws -> [Record2] {
          var records = [Record2]()
         guard self.prepareReadAllEntryStmt() == SQLITE_OK else { throw SqliteError(message: "Error in prepareReadAllEntryStmt") }
@@ -1336,13 +1335,11 @@ extension SqliteDbStore {
                  // reset the prepared statement on exit.
                  sqlite3_reset(self.deleteRoomStmt)
              }
-             
              //Inserting name in deleteRoomStmt prepared statement
              if sqlite3_bind_text(self.deleteRoomStmt, 1, (String(_Id) as NSString).utf8String, -1, nil) != SQLITE_OK {
                  logDbErr("sqlite3_bind_text(deleteRoomStmt)")
                  return false
              }
-             
              //executing the query to delete row
              let r = sqlite3_step(self.deleteRoomStmt)
              if r != SQLITE_DONE {
@@ -1365,10 +1362,7 @@ extension SqliteDbStore {
             return SQLITE_OK
         }
         
-        
          let sql = "INSERT INTO Rooms(RoomId, ProjectId, LevelId, Name, LevelName, Address, State, City, ZIP, PictureName, RoomLength, RoomWidth, Connectors, CenterX, CenterY, ScaleX, ScaleY, Rotation, Shape, Fliped) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-        
-        
         
          //preparing the query
          let r = sqlite3_prepare(db2, sql, -1, &insertRoomStmt, nil)
@@ -1413,4 +1407,290 @@ extension SqliteDbStore {
          }
          return r
      }
+    
+    func hasRequired(projectId:Int)-> String{
+        let rooms = SqliteDbStore.shared.queryAllRooms()
+        var bath = 0
+        var kitchen = 0
+        var bed = 0
+        
+        for r in rooms {
+            if(r.ProjectId == projectId){
+                let name = r.Name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name2 = name.lowercased()
+                if(name2.contains("bathroom")){
+                    bath = 1
+                }
+                else if(name2.contains("kitchen")){
+                    kitchen = 1
+                }
+                else if(name2.contains("bedroom")){
+                    bed = 1
+                }
+            }
+        }
+        var req = ""
+        if(bed == 0){
+            req = "Bedroom"
+        }
+        if(bath == 0){
+            req = req + ", Bathroom"
+        }
+        if(kitchen == 0){
+            req = req + ", Kitchen"
+        }
+        return req
+    }
+    
+    
+    func assignedProjectCompleted(p:Project)->ProjectError{
+        var pError = ProjectError()
+        let req = hasRequired(projectId: p.ProjectId)
+        if ((p.OutsidePictures != "") && (req == "") && (p.Outside3DPictures != "")) {
+            if (p.Completed == "Yes") {
+                pError.MissingCheck = "No"
+            }
+            else{
+                pError.MissingCheck = "Yes"
+            }
+        }
+        else{
+            pError.ProjectId = p.ProjectId
+            if (p.Completed == "Yes") {
+                pError.MissingCheck = "No"
+            }
+            else{
+                pError.MissingCheck = "Yes"
+            }
+            if  (p.OutsidePictures == "") {
+                pError.MissingOutsidePics = "Yes"
+            }
+            
+            if  (p.Outside3DPictures == "") {
+                pError.MissingOutside3DPics = "Yes"
+            }
+            if(req.count > 0){
+                pError.BK = req
+            }
+        }
+        
+        var badRoom:[Room] = []
+        var goodRoom:[Room] = []
+        var rooms2:[Room] = []
+        
+        let rooms = SqliteDbStore.shared.queryAllRooms()
+        for r in rooms {
+            if(r.ProjectId == p.ProjectId){
+                rooms2.append(r)
+                let name = r.Name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name2 = name.lowercased()
+                
+                let PictureName = r.PictureName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let PictureName2 = PictureName.lowercased()
+                
+                let RoomLength = r.RoomLength.trimmingCharacters(in: .whitespacesAndNewlines)
+                let RoomLength2 = RoomLength.lowercased()
+                if(name2.contains("crawl space") || name2.contains("attic") || name2.contains("staircase")){
+                    goodRoom.append(r)
+                    continue
+                }
+                else if((PictureName2 != "") && (RoomLength2 != "")){
+                    goodRoom.append(r)
+                    continue
+                }
+                else{
+                    badRoom.append(r)
+                    if(PictureName2 == "" ){
+                        if(pError.MissingPicture == ""){
+                            pError.MissingPicture = r.LevelName + ": "  +  r.Name
+                        }
+                        else{
+                            pError.MissingPicture = pError.MissingPicture + ", " + r.LevelName + ": "  +  r.Name
+                        }
+                    }
+                    if(RoomLength2 == ""){
+                        if(pError.MissingMeasure == ""){
+                            pError.MissingMeasure =  r.LevelName + ": "  +  r.Name
+                        }
+                        else{
+                            pError.MissingMeasure = pError.MissingMeasure + ", " + r.LevelName + ": "  +  r.Name
+                        }
+                    }
+                }
+            }
+        }
+        
+    
+        var badLevel:[Level] = []
+        var goodLevel:[Level] = []
+        let levels = SqliteDbStore.shared.queryAllLevel(_Id: p.ProjectId)
+        for l in levels {
+            var isGoodLevel = false
+            for r in rooms2 {
+                if (r.ProjectId == l.ProjectId && r.LevelId == l.LevelId) {
+                    isGoodLevel = true
+                    break
+                }
+            }
+            if(isGoodLevel==false) {
+                if(pError.EmptyLevels == ""){
+                    pError.EmptyLevels = l.Name
+                }
+                else{
+                    pError.EmptyLevels = pError.EmptyLevels + ", " + l.Name
+                }
+                badLevel.append(l);
+            }
+            else{
+                 goodLevel.append(l);
+            }
+        }
+        
+        let eptl = pError.EmptyLevels.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mMeasure = pError.MissingMeasure.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mPicture = pError.MissingPicture.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bk = pError.BK.trimmingCharacters(in: .whitespacesAndNewlines)
+       // let mOutPicture = pError.MissingOutsidePics.trimmingCharacters(in: .whitespacesAndNewlines)
+        //let mOut3DPicture = pError.MissingOutside3DPics.trimmingCharacters(in: .whitespacesAndNewlines)
+        if ((bk == "") && (p.OutsidePictures != "") && (p.Outside3DPictures != "") && (mPicture == "") && (mMeasure == "") && (eptl == "")
+            && (levels.count > 0) && (levels.count == goodLevel.count) && (rooms2.count > 0) && (rooms2.count == goodRoom.count)) {
+            pError = ProjectError()
+            pError.ReturnType = 3
+            return pError
+        }
+        else if ((p.OutsidePictures == "") && (p.Outside3DPictures == "") && (levels.count == 0)) {
+            pError = ProjectError()
+            pError.ReturnType = 1
+            return pError
+        }
+        else {
+            pError.Address = p.Address
+            pError.City = p.City  + ", " + p.State + ", " + p.ZIPCode
+            pError.ReturnType = 2
+            return pError
+        }
+    }
+    
+    func needInfoProjectCompleted(p:Project)->ProjectError{
+       var pError = ProjectError()
+        if ((p.OutsidePictures != "") &&  (p.Outside3DPictures != "")) {
+            if (p.Completed == "Yes") {
+                pError.MissingCheck = "No"
+            }
+            else{
+                pError.MissingCheck = "Yes"
+            }
+        }
+        else{
+            pError.ProjectId = p.ProjectId
+            if (p.Completed == "Yes") {
+                pError.MissingCheck = "No"
+            }
+            else{
+                pError.MissingCheck = "Yes"
+            }
+        }
+        
+        var badRoom:[Room] = []
+        var goodRoom:[Room] = []
+        var rooms2:[Room] = []
+        
+        let rooms = SqliteDbStore.shared.queryAllRooms()
+        for r in rooms {
+            if(r.ProjectId == p.ProjectId){
+                rooms2.append(r)
+                let name = r.Name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name2 = name.lowercased()
+                
+                let PictureName = r.PictureName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let PictureName2 = PictureName.lowercased()
+                
+                let RoomLength = r.RoomLength.trimmingCharacters(in: .whitespacesAndNewlines)
+                let RoomLength2 = RoomLength.lowercased()
+                if(name2.contains("crawl space") || name2.contains("attic") || name2.contains("staircase")){
+                    goodRoom.append(r)
+                    continue
+                }
+                else if((PictureName2 != "") && (RoomLength2 != "")){
+                    goodRoom.append(r)
+                    continue
+                }
+                else{
+                    badRoom.append(r)
+                    if(PictureName2 == "" ){
+                        if(pError.MissingPicture == ""){
+                            pError.MissingPicture = r.LevelName + ": "  +  r.Name
+                        }
+                        else{
+                            pError.MissingPicture = pError.MissingPicture + ", " + r.LevelName + ": "  +  r.Name
+                        }
+                    }
+                    if(RoomLength2 == ""){
+                        if(pError.MissingMeasure == ""){
+                            pError.MissingMeasure =  r.LevelName + ": "  +  r.Name
+                        }
+                        else{
+                            pError.MissingMeasure = pError.MissingMeasure + ", " + r.LevelName + ": "  +  r.Name
+                        }
+                    }
+                }
+            }
+        }
+        
+        var badLevel:[Level] = []
+        var goodLevel:[Level] = []
+        let levels = SqliteDbStore.shared.queryAllLevel(_Id: p.ProjectId)
+        for l in levels {
+            var isGoodLevel = false
+            for r in rooms2 {
+                if (r.ProjectId == l.ProjectId && r.LevelId == l.LevelId) {
+                    isGoodLevel = true
+                    break
+                }
+            }
+            if(isGoodLevel==false) {
+                if(pError.EmptyLevels == ""){
+                    pError.EmptyLevels = l.Name
+                }
+                else{
+                    pError.EmptyLevels = pError.EmptyLevels + ", " + l.Name
+                }
+                badLevel.append(l);
+            }
+            else{
+                 goodLevel.append(l);
+            }
+        }
+        if ((p.OutsidePictures == "") && (p.Outside3DPictures == "") && (levels.count == 0)) {
+            pError = ProjectError()
+            pError.ReturnType = 1
+            return pError
+        }
+        else if ((p.OutsidePictures != "") || (p.Outside3DPictures != "") && (levels.count == 0)) {
+            pError = ProjectError()
+            pError.ReturnType = 3
+            return pError
+        }
+        else if((levels.count > 0) && (levels.count == goodLevel.count) && (rooms2.count > 0) && (rooms2.count == goodRoom.count)){
+            pError = ProjectError()
+            pError.ReturnType = 3
+            return pError
+        }
+        else{
+            pError.Address = p.Address
+            pError.City = p.City  + ", " + p.State + ", " + p.ZIPCode
+            pError.ReturnType = 2
+            return pError
+        }
+    }
+    
+    func projectCompleted(p:Project)->ProjectError{
+        if(p.Status == 0){
+            return assignedProjectCompleted(p:p)
+        }
+        else
+            {
+            return needInfoProjectCompleted(p:p)
+        }
+    }
 }
