@@ -62,8 +62,6 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
         self.present(newViewController, animated: true, completion: nil)
     }
     
-    
-    
     @IBAction func takeEntrancePic(_ sender: Any) {
         checkCamConnection()
     }
@@ -79,7 +77,6 @@ class SelectProject: UIViewController, UITableViewDataSource, UITableViewDelegat
         return id + 1
     }
     
-
     func picLoader(){
         let picker = UIImagePickerController()
         picker.delegate = self

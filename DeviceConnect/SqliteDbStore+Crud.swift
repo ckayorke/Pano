@@ -1666,7 +1666,7 @@ extension SqliteDbStore {
             pError.ReturnType = 1
             return pError
         }
-        else if ((p.OutsidePictures != "") || (p.Outside3DPictures != "") && (levels.count == 0)) {
+        else if (((p.OutsidePictures != "") || (p.Outside3DPictures != "")) && (levels.count == 0)) {
             pError = ProjectError()
             pError.ReturnType = 3
             return pError
